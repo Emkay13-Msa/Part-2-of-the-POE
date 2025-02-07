@@ -1,121 +1,106 @@
-import React, { useEffect, useState } from 'react';
-import { SafeAreaView, Text, Button, FlatList, View, StyleSheet } from 'react-native';
-import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { useMenu } from './MenuContext';
+import { useState } from "react";
 
-type RootStackParamList = {
-  Homepage: undefined;
-  ChefPage: undefined;
-  FilterPage: undefined;
-};
+interface MenuItem {
+  id: number;
+  name: string;
+  description: string;
+  course: string;
+  price: number;
+}
 
-type HomepageProps = NativeStackScreenProps<RootStackParamList, 'Homepage'>;
+const courses = ["Starters", "Mains", "Desserts"];
 
-const Homepage: React.FC<HomepageProps> = ({ navigation }) => {
-  const { menuItems, removeMenuItem } = useMenu(); // Get menuItems and removeMenuItem from context
-  const [averagePrices, setAveragePrices] = useState<Record<string, number>>({});
+export default function App() {
+  const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
+  const [form, setForm] = useState({
+    name: "",
+    description: "",
+    course: courses[0],
+    price: "" // Keep as string since input type="number" returns a string
+  });
 
-  // Function to handle item deletion
-  const handleDeleteItem = (dishName: string) => {
-    removeMenuItem(dishName); // Call removeMenuItem to delete the item from the menu
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  // Calculate average prices for each course
-  useEffect(() => {
-    const calculateAveragePrices = () => {
-      const totals: Record<string, { total: number; count: number }> = {};
+  const addMenuItem = () => {
+    if (!form.name || !form.description || !form.price) return;
 
-      menuItems.forEach((item) => {
-        if (item.course) {
-          if (!totals[item.course]) {
-            totals[item.course] = { total: 0, count: 0 };
-          }
-          totals[item.course].total += parseFloat(item.price.replace(',', '.'));
-          totals[item.course].count += 1;
-        }
-      });
-
-      const averages: Record<string, number> = {};
-      for (const course in totals) {
-        averages[course] = parseFloat((totals[course].total / totals[course].count).toFixed(2));
-      }
-      setAveragePrices(averages);
+    const newItem: MenuItem = {
+      id: Date.now(),
+      name: form.name,
+      description: form.description,
+      course: form.course,
+      price: parseFloat(form.price) // Ensure conversion to number
     };
 
-    calculateAveragePrices();
-  }, [menuItems]);
+    setMenuItems([...menuItems, newItem]);
+    setForm({ name: "", description: "", course: courses[0], price: "" });
+  };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Full Menu</Text>
-      <FlatList
-        data={menuItems}
-        keyExtractor={(item) => item.dishName}
-        renderItem={({ item }) => (
-          <View style={styles.menuItem}>
-            <Text style={styles.dishName}>{item.dishName}</Text>
-            <Text style={styles.description}>{item.description}</Text>
-            <Text style={styles.course}>{item.course}</Text>
-            <Text style={styles.price}>${item.price}</Text>
-            <Button title="Delete" onPress={() => handleDeleteItem(item.dishName)} /> {/* Add Delete button */}
-          </View>
+    <div className="p-6 max-w-2xl mx-auto">
+      <h1 className="text-2xl font-bold mb-4">Chef's Menu</h1>
+      <div className="border p-4 rounded-lg shadow">
+        <h2 className="text-xl font-semibold mb-2">Add a Menu Item</h2>
+        <input
+          type="text"
+          name="name"
+          placeholder="Dish Name"
+          value={form.name}
+          onChange={handleChange}
+          className="border p-2 w-full mb-2 rounded"
+        />
+        <input
+          type="text"
+          name="description"
+          placeholder="Description"
+          value={form.description}
+          onChange={handleChange}
+          className="border p-2 w-full mb-2 rounded"
+        />
+        <select 
+          name="course"
+          value={form.course}
+          onChange={handleChange}
+          className="border p-2 w-full mb-2 rounded"
+        >
+          {courses.map((course) => (
+            <option key={course} value={course}>{course}</option>
+          ))}
+        </select>
+        <input
+          type="number"
+          name="price"
+          placeholder="Price"
+          value={form.price}
+          onChange={handleChange}
+          className="border p-2 w-full mb-2 rounded"
+        />
+        <button
+          onClick={addMenuItem}
+          className="bg-blue-500 text-white p-2 rounded w-full"
+        >
+          Add Dish
+        </button>
+      </div>
+
+      <h2 className="text-xl font-semibold mt-6">Menu ({menuItems.length} items)</h2>
+      <div className="mt-4">
+        {menuItems.length === 0 ? (
+          <p className="text-gray-500">No menu items yet.</p>
+        ) : (
+          <ul className="space-y-3">
+            {menuItems.map((item) => (
+              <li key={item.id} className="border p-3 rounded shadow">
+                <h3 className="font-semibold">{item.name} - ${item.price.toFixed(2)}</h3>
+                <p className="text-gray-700">{item.description}</p>
+                <p className="text-sm text-gray-500">Course: {item.course}</p>
+              </li>
+            ))}
+          </ul>
         )}
-      />
-      <View style={styles.averageContainer}>
-        <Text style={styles.averageTitle}>Average Prices by Course</Text>
-        {Object.entries(averagePrices).map(([course, avg]) => (
-          <Text key={course}>
-            {course}: ${avg}
-          </Text>
-        ))}
-      </View>
-      <Button title="Go to Chef Page" onPress={() => navigation.navigate('ChefPage')} />
-      <Button title="Filter Menu" onPress={() => navigation.navigate('FilterPage')} />
-    </SafeAreaView>
+      </div>
+    </div>
   );
-};
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-    backgroundColor: '#FFCCCB',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-  menuItem: {
-    padding: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-  },
-  dishName: {
-    fontWeight: 'bold',
-    fontSize: 18,
-  },
-  description: {
-    fontSize: 16,
-    color: '#555',
-  },
-  course: {
-    fontSize: 14,
-    fontStyle: 'italic',
-  },
-  price: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  averageContainer: {
-    marginTop: 20,
-  },
-  averageTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    marginBottom: 10,
-  },
-});
-
-export default Homepage;
-
+}
